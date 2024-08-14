@@ -29,7 +29,6 @@ def preprocess_image(image_path):
     # 傾き補正
     corrected_img = deskew(cropped_img)
 
-    # 前処理された画像を保存または返す
     return corrected_img
 
 def deskew(image):
@@ -66,11 +65,46 @@ def deskew(image):
 
     return rotated
 
+def extract_and_save_data_rows(image, min_threshold=0.01, max_threshold=0.9):
+    # グレースケールに変換
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # 二値化
+    _, binary_image = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
+
+    h, w = binary_image.shape
+
+    # 各行をスキャンしてデータが含まれているか判定
+    saved_image_count = 0
+    start = None
+
+    for i in range(h):
+        black_pixel_ratio = np.sum(binary_image[i, :] == 255) / w
+        
+        if min_threshold < black_pixel_ratio < max_threshold:  # 1割以上9割未満の黒いピクセルがある行をデータとみなす
+            if start is None:
+                start = i  # データがある行の開始位置を記録
+        else:
+            if start is not None:
+                # データがある行を画像として保存
+                row_img = image[start:i, :]
+                cv2.imwrite(f'data_row_{saved_image_count}.png', row_img)
+                saved_image_count += 1
+                start = None  # リセット
+    
+    # 最後のデータ行を保存
+    if start is not None:
+        row_img = image[start:h, :]
+        cv2.imwrite(f'data_row_{saved_image_count}.png', row_img)
+
+    print(f'{saved_image_count} rows with data saved.')
+
+
 # 画像のパス
 image_path = 'aaa.png'
 
 # 前処理した画像を取得
 processed_image = preprocess_image(image_path)
 
-# 処理結果を保存（確認用）
-cv2.imwrite('processed_image.png', processed_image)
+# データが含まれている行を抽出して画像として保存
+extract_and_save_data_rows(processed_image)
