@@ -26,11 +26,45 @@ def preprocess_image(image_path):
     # 画像を外接矩形にクロップ
     cropped_img = img[y:y+h, x:x+w]
 
-    # 傾き補正（必要な場合）
-    # ここに傾き補正コードを追加できます
+    # 傾き補正
+    corrected_img = deskew(cropped_img)
 
     # 前処理された画像を保存または返す
-    return cropped_img
+    return corrected_img
+
+def deskew(image):
+    # グレースケールに変換（傾き補正のために再度グレースケールを使用）
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # エッジ検出
+    edges = cv2.Canny(gray, 50, 200)
+
+    # 輪郭を探す
+    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+
+    # 輪郭の最小外接矩形を計算
+    min_area_rect = cv2.minAreaRect(max(contours, key=cv2.contourArea))
+
+    # 傾き角度を取得
+    angle = min_area_rect[-1]
+
+    # 角度を調整
+    if angle < -45:
+        angle = -(90 + angle)
+    else:
+        angle = -angle
+
+    # 画像の中心を計算
+    (h, w) = image.shape[:2]
+    center = (w // 2, h // 2)
+
+    # 回転行列を計算
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+
+    # 画像を回転させて補正
+    rotated = cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+    return rotated
 
 # 画像のパス
 image_path = 'aaa.png'
